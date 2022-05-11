@@ -24,7 +24,7 @@ namespace FIrstGame
         Modifiers modifiers;
         int modifierTimer = 0;
         // Временный модификатор
-        Modifier _modifier;
+        //Modifier _modifier;
         // Взрыв
         Vector2 DefaultExplosianPosition; // Позиция метеорита по умлочанию
         Vector2 explosianPosition; // Позиция взрыва
@@ -127,8 +127,8 @@ namespace FIrstGame
             // Спавн рандомного модификаторы
             if (modifierTimer == 250)
             {
-                var s = modifiers.CreateModifier(Content) as Modifier;
-                RandomPositionModifier(s);
+                modifiers.CreateModifier(Content);
+                RandomPositionModifier(modifiers.GetModifier());
                 //modifiers.CreateModifier(Content);
                 //var modifier = modifiers.First;
                 //RandomPositionModifier(modifier.Value);
@@ -253,7 +253,7 @@ namespace FIrstGame
             base.Draw(gameTime);
         }
         // Рандомизация траектории падения модификатора
-        void RandomPositionModifier(Modifiers modifier)
+        void RandomPositionModifier(Modifier modifier)
         {
             var rnd = new Random();
             var rndModifierPosition = rnd.Next(0,1980-modifier.Texture.Width);
