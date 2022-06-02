@@ -15,6 +15,8 @@ namespace FIrstGame
         public Texture2D Bullet { get; set; } // Спрайт снаряда
         public Texture2D Speed { get; set; } // Спрайт баффа скорости
         public Texture2D UnSpeed { get; set; } // Спрайт дебаффа скорости
+        public Texture2D SpeedFire { get; set; } // Спрайт баффа скорострельности
+        public Texture2D UnSpeedFire { get; set; } // Спрайт дебаффа скорострельности
         public TextureForeground(ContentManager contentManager)
         {
             UserShip = contentManager.Load<Texture2D>("Image/MainShip_Move_1");
@@ -23,6 +25,8 @@ namespace FIrstGame
             Bullet = contentManager.Load<Texture2D>("Image/Bullet");
             Speed = contentManager.Load<Texture2D>("ModifierImage/Speed");
             UnSpeed = contentManager.Load<Texture2D>("ModifierImage/UnSpeed");
+            SpeedFire = contentManager.Load<Texture2D>("ModifierImage/SpeedFire");
+            UnSpeedFire = contentManager.Load<Texture2D>("ModifierImage/UnSpeedFire");
         }
     }
 }

@@ -11,34 +11,48 @@ namespace FIrstGame
     {
         GraphicsDeviceManager _graphics;
         SpriteBatch _spriteBatch;
+
+        private Texture2D _backgroundMenu;
+        private List<IComponent> _gameComponents;
+
         // Текстуры фона игры
         TextureBackground textB;
+
         // Текстуры игрового поля игры
         TextureForeground textF;
+
         // Корабль игрока
         UserShips userShips;
+
         // Метеориты
         Meteors meteors = new Meteors();
         //Point meteorSize; // Размер српайта метеорита
+
         // Модификатор
+        
+        // Хранение модификаторов
         Modifiers modifiers;
+        // Счётчик времени перед спавном модификатора
         int modifierTimer = 0;
+
         // Временный модификатор
         Modifier _modifier;
+
         // Взрыв
-        Vector2 DefaultExplosianPosition; // Позиция метеорита по умлочанию
-        Vector2 explosianPosition; // Позиция взрыва
+        Explosians explosians;
+
         // Снаряды
         Bullets bullets;
+
         // Счётчик снарядов
-        int deltaTime = 0;
+        int DeltaTime = 0;
+
+        // Старт игры
+        bool IsStartGame = false;
 
         // Картинка корабля, как спрайт
         // Point spriteSize = new Point(1,1);
 
-        // Фон игры
-        int windowWidthSize = 1920;
-        int windowHeightSize = 1025;
         Rectangle backgroundGameWindow;
 
         public Game1()
@@ -54,6 +68,7 @@ namespace FIrstGame
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
+            IsMouseVisible = true;
 
             base.Initialize();
         }
@@ -74,32 +89,69 @@ namespace FIrstGame
             bullets = new Bullets(Content);
             // Модификаторы
             modifiers = new Modifiers();
-            // Модификатор
-            //_modifier = new Modifier(Content);
+            // Взрыв
+            explosians = new Explosians(Content);
 
             // Фон игры
             backgroundGameWindow = new Rectangle(0, 0,
-                windowWidthSize,
-                windowHeightSize
+                textB.windowWidthSize,
+                textB.windowHeightSize
                 );
+            
             // Переменные для уменьшения кода
-            var centerPoint = windowWidthSize / 2;
+            var centerPoint = textB.windowWidthSize / 2;
             // Начальные позиции
             var startUserPosition = new Vector2(
                 centerPoint,
-                windowHeightSize
+                textB.windowHeightSize
                 );
-            DefaultExplosianPosition = new Vector2(
-                0,
-                -textF.Explosian.Height
-                );
-            // Спавн метеоритов в кол-ве до 10
+            
+            var mainBWP = textB.windowWidthSize / 2 - textB.Button.Width / 2;
+            _backgroundMenu = textB.BackgroundMenu;
+
+            // Кнопки
+            var startButton = new Button(
+                textB.Button,
+                textB.FontText)
+            {
+                Position = new Vector2(mainBWP, 400),
+                Text = "Start"
+            };
+            startButton.Click += StartButton_Click;
+
+            var quitButton = new Button(
+                textB.Button,
+                textB.FontText)
+            {
+                Position = new Vector2(mainBWP, 700),
+                Text = "Quit"
+            };
+            quitButton.Click += QuitButton_Click;
+
+            // _gameComponents, Лист с кнопками
+            _gameComponents = new List<IComponent>()
+            {
+                startButton,
+                quitButton,
+            };
+
+            // Спавн метеоритов в кол-ве: 10 - 20
             RandomSpawnMeteors(meteors);
+            // Создание кораблика для игрока
+            userShips.AddUserShip();
+            // Создание взрыва
+            explosians.AddExplosian();
+            
+        }
 
-            userShips.AddUserShip(textF.UserShip);
+        private void QuitButton_Click(object sender, EventArgs e)
+        {
+            Exit();
+        }
 
-            explosianPosition = DefaultExplosianPosition;
-
+        private void StartButton_Click(object sender, EventArgs e)
+        {
+            IsStartGame = true;
         }
 
         // Обновляет состояние игры, управляет ее логикой
@@ -109,82 +161,97 @@ namespace FIrstGame
                 Exit();
 
             // TODO: Add your update logic here
-
-            // Движения игрока
-            KeyboardState keyboardState = Keyboard.GetState();
-            var userShip = userShips.First;
-            modifierTimer++;
-
-            if (keyboardState.IsKeyDown(Keys.Up) & CheckingForWallsUserShip())
-                userShip.Value.Position.Y -= userShip.Value.Speed;
-            if (keyboardState.IsKeyDown(Keys.Down) & CheckingForWallsUserShip())
-                userShip.Value.Position.Y += userShip.Value.Speed;
-            if (keyboardState.IsKeyDown(Keys.Right) & CheckingForWallsUserShip())
-                userShip.Value.Position.X += userShip.Value.Speed;
-            if (keyboardState.IsKeyDown(Keys.Left) & CheckingForWallsUserShip())
-                userShip.Value.Position.X -= userShip.Value.Speed;
             
-            // Спавн рандомного модификаторы
-            if (modifierTimer == 250)
-            {
-                var s = modifiers.CreateModifier(Content) as Modifier;
-                RandomPositionModifier(s);
-                //modifiers.CreateModifier(Content);
-                //var modifier = modifiers.First;
-                //RandomPositionModifier(modifier.Value);
-            }
-            // Доделать обработку падения текстур
-            if (CheckingForWallsModifier())
-            {
-                modifierTimer = 0;
-                modifiers.FirstOrDefault();
-            }
+            // Игрок
+            var userShip = userShips.First();
+            // Вызрыв
+            var explosian = explosians.First();
+            
+            // Обновление меню
+            if (!IsStartGame)
+                foreach (var component in _gameComponents)
+                    component.Update(gameTime);
 
-            // Проверка на столкновение
-            if (CollideUserModifier())
-            {
-                switch (modifiers.First().TypeModifier)
-                {
-                    case 0:
-                        userShip.Value.Speed += 1f;
-                        break;
-                    case 1:
-                        userShip.Value.Speed -= 1f;
-                        break;
-                }
-            }
-            if (!CollideUserMeteor())
-            {
-                // Движение метеорита
-                foreach (var meteor in meteors)
-                    meteor.Position.Y += meteor.Speed;
-            }
-            if (!CollideBulletMeteor())
-            {
-                // Тут движение снаряда выпущенного от игрока
-                foreach (var bullet in bullets)
-                {
-                    bullet.Position.Y -= bullet.Speed;
-                }
-            }
+            // Вызов клавиатуры для провреки
+            KeyboardState keyboardState = Keyboard.GetState();
+
+            // Проверка на столкновения
+            foreach (var ship in userShips)
+                ship.Update(keyboardState, ship);
 
             // Создание снарядов
             if (keyboardState.IsKeyDown(Keys.Space))
             {
-                if (deltaTime == 0)
+                if (DeltaTime == 0)
                 {
-                    bullets.AddBullet(textF.Bullet);
-                    var bullet = bullets.LastOrDefault();
-                    bullet.Position = new Vector2(
-                        userShip.Value.Position.X + (textF.UserShip.Width / 2 - textF.Bullet.Width / 2),
-                        userShip.Value.Position.Y - textF.Bullet.Height);
-                    deltaTime += 25;
+                    // Создание снарядов
+                    bullets.AddBullet(userShip);
+                    foreach (var bullet in bullets)
+                    {
+                        bullet.Update(gameTime, bullet, DeltaTime, meteors, explosian);
+                        DeltaTime = bullet.DeltaTime;
+                    }
+                    // Удаление снарядов
+                    foreach (var e in bullets)
+                        if (e ==  null)
+                            bullets.Remove(e);
+                    
                 }
                 else
                 {
-                    deltaTime--;
+                    DeltaTime--;
                 }
             }
+
+            // Спавн рандомного модификаторы
+            if (modifierTimer == 250)
+            {
+                if (_modifier == null)
+                {
+                    _modifier = modifiers.CreateModifier(Content);
+                    RandomPositionModifier(_modifier);
+                }
+                else
+                    _modifier.Position.Y += _modifier.Speed;
+            }
+            else
+                modifierTimer++;
+
+            // Удаление модификатора при достижении границы
+            if (CollideWallsModifier())
+            {
+                ResetModifier();
+            }
+
+            // Проверка на столкновение модификатора и игрока
+            if (CollideUserModifier())
+            {
+                switch (_modifier.TypeModifier)
+                {
+                    case 0:
+                        userShip.Speed += 1f;
+                        break;
+                    case 1:
+                        userShip.Speed -= 1f;
+                        break;
+                    case 2:
+                        if (userShip.FireRate != 0)
+                            userShip.FireRate -= 7;
+                        break;
+                    case 3:
+                        userShip.FireRate += 7;
+                        break;
+                }
+                ResetModifier();
+            }
+
+            // Движение метеорита
+            foreach (var meteor in meteors)
+                meteor.Update(meteor, userShip, explosian);
+
+            // Движение снарядов игрока
+            foreach (var bullet in bullets)
+                bullet.Position.Y -= bullet.Speed;
 
             // End
             base.Update(gameTime);
@@ -193,226 +260,128 @@ namespace FIrstGame
         // Выполняет отрисовку на экране
         protected override void Draw(GameTime gameTime)
         {
-            //GraphicsDevice.Clear(Color.CornflowerBlue);// Синий фон
             // Размеры окна игры
-            this._graphics.PreferredBackBufferWidth = windowWidthSize;
-            this._graphics.PreferredBackBufferHeight = windowHeightSize;
+            this._graphics.PreferredBackBufferWidth = textB.windowWidthSize;
+            this._graphics.PreferredBackBufferHeight = textB.windowHeightSize;
             _graphics.ApplyChanges();
+            //GraphicsDevice.Clear(_backgroundColor);// Синий фон
 
             // TODO: Add your drawing code here
             _spriteBatch.Begin();
 
-            // Фон игры
-            _spriteBatch.Draw(
-                textB.BackgroundSpace1,
-                backgroundGameWindow,
-                Color.White);
-
-            // Корабль игрока
-            var userShip = userShips.First;
-            _spriteBatch.Draw(
-                userShip.Value.Texture,
-                userShip.Value.Position,
-                userShip.Value.Color);
-
-            // Создание временного модификатора
-            if (modifiers.Count != 0)
+            if (!IsStartGame)
             {
-                _modifier = modifiers.First();
+                //Фон игры
                 _spriteBatch.Draw(
-                    _modifier.Texture,
-                    _modifier.Position,
-                    _modifier.Color);
+                    textB.BackgroundMenu,
+                    backgroundGameWindow,
+                    Color.White);
+                // Меню
+                foreach (var component in _gameComponents)
+                    component.Draw(gameTime, _spriteBatch);
             }
-
-            // Метеориты
-            foreach (var meteor in meteors)
-                _spriteBatch.Draw(
-                    meteor.Texture,
-                    meteor.Position,
-                    meteor.Color);
-
-            // Взрыв
-            _spriteBatch.Draw(
-                textF.Explosian,
-                explosianPosition,
-                Color.White);
-
-            // Снаряд
-            foreach (var bullet in bullets)
+            else
             {
+                //Фон игры
                 _spriteBatch.Draw(
-                    bullet.Texture,
-                    bullet.Position,
-                    bullet.Color);
-            }
+                    textB.BackgroundSpace1,
+                    backgroundGameWindow,
+                    Color.White);
 
+                foreach (var userShip in userShips)
+                    userShip.Draw(_spriteBatch, userShip);
+
+                // Создание временного модификатора
+                if (_modifier != null)
+                {
+                    _spriteBatch.Draw(
+                        _modifier.Texture,
+                        _modifier.Position,
+                        _modifier.Color);
+                }
+
+                // Метеориты
+                foreach (var meteor in meteors)
+                    meteor.Draw(_spriteBatch, meteor);
+
+                // Взрыв
+                foreach (var explosian in explosians)
+                    explosian.Draw(_spriteBatch, explosian);
+
+                // Выстрелы
+                foreach (var bullet in bullets)
+                    bullet.Draw(_spriteBatch, bullets);
+            }
+            
             _spriteBatch.End();
 
             // End
             base.Draw(gameTime);
         }
-        // Рандомизация траектории падения модификатора
-        void RandomPositionModifier(Modifiers modifier)
+
+        void ResetModifier()
         {
-            var rnd = new Random();
-            var rndModifierPosition = rnd.Next(0,1980-modifier.Texture.Width);
+            modifierTimer = 0;
+            _modifier = null;
+            modifiers.Delete();
+        }
+
+        // Рандомизация траектории падения модификатора
+        void RandomPositionModifier(Modifier modifier)
+        {
+            var rndModifierPosition = new Random().Next(0,1980-modifier.Texture.Width);
             modifier.Position = new Vector2(rndModifierPosition,-modifier.Texture.Height);
         }
 
         // Рандомизация метеоритов
         void RandomSpawnMeteors(Meteors meteors)
         {
-            var rnd = new Random();
-            var rndMeteorsCount = rnd.Next(1, 11);
+            // Спавн рандомного кол-ва метеоритов
+            var rndMeteorsCount = new Random().Next(10, 31);
             for (int i = 0; i < rndMeteorsCount; i++)
             {
-                var rnd1 = new Random();
-                var rndMeteorsPosition = rnd1.Next(0, 1980 - textF.Meteor.Width);
+                // Рандомный множитель спавна по вертикале
+                var rndMeteorsSpawnHeight = new Random().Next(1, 6);
+                // Рандомный спавн метеорита по горизонтале
+                var rndMeteorsPosition = new Random().Next(0, 1980 - textF.Meteor.Width);
                 meteors.AddMeteor(
-                    textF.Meteor,
+                    Content,
                     new Vector2(
                         rndMeteorsPosition,
-                        -textF.Meteor.Height
+                        -textF.Meteor.Height*rndMeteorsSpawnHeight
                         )
                     );
             }
         }
-        protected bool CheckingForWallsModifier()
+
+        protected bool CollideWallsModifier()
         {
             var result = false;
-            var modifier = modifiers.First;
-            if (modifier != null)
-                if ((modifier.Value.Position.Y + modifier.Value.Texture.Height) >= windowHeightSize)
+            if (_modifier != null)
+                if ((_modifier.Position.Y + _modifier.Texture.Height) >= textB.windowHeightSize)
                     result = true;
             return result;
         }
 
-        // Проверка на наличие стен у коробля игрока
-        public bool CheckingForWallsUserShip()
-        {
-            var userShip = userShips.First;
-            bool IsNextToWall = true;
-            if (userShip.Value.Position.X < 0)
-            {
-                IsNextToWall = false;
-                userShip.Value.Position.X = 0;
-            }
-            if (userShip.Value.Position.Y < 0)
-            {
-                IsNextToWall = false;
-                userShip.Value.Position.Y = 0;
-            }
-            if ((userShip.Value.Position.X + textF.UserShip.Width) > windowWidthSize)
-            {
-                IsNextToWall = false;
-                userShip.Value.Position.X = windowWidthSize - textF.UserShip.Width;
-            }
-            if ((userShip.Value.Position.Y + textF.UserShip.Height) > windowHeightSize)
-            {
-                IsNextToWall = false;
-                userShip.Value.Position.Y = windowHeightSize - textF.UserShip.Height;
-            }
-            return IsNextToWall;
-        }
         protected bool CollideUserModifier()
         {
             var result = false;
             var userShip = userShips.First;
-            var modifier = modifiers.First;
+            //var modifier = modifiers.First;
             Rectangle userShipRect = new Rectangle(
                     (int)userShip.Value.Position.X,
                     (int)userShip.Value.Position.Y,
                     userShip.Value.Texture.Width,
                     userShip.Value.Texture.Height);
-            if (modifier != null)
+            if (_modifier != null)
             {
                 Rectangle modifierRect = new Rectangle(
-                        (int)modifier.Value.Position.X,
-                        (int)modifier.Value.Position.Y,
-                        modifier.Value.Texture.Width,
-                        modifier.Value.Texture.Height);
+                        (int)_modifier.Position.X,
+                        (int)_modifier.Position.Y,
+                        _modifier.Texture.Width,
+                        _modifier.Texture.Height);
                 result = userShipRect.Intersects(modifierRect);
             }
-            return result;
-        }
-        protected bool CollideUserMeteor()
-        {
-            var result = false;
-            var userShip = userShips.First;
-            Rectangle userShipRect = new Rectangle(
-                    (int)userShip.Value.Position.X,
-                    (int)userShip.Value.Position.Y,
-                    userShip.Value.Texture.Width,
-                    userShip.Value.Texture.Height);
-            foreach (var meteor in meteors)
-            {
-                Rectangle meteorRect = new Rectangle(
-                    (int)meteor.Position.X,
-                    (int)meteor.Position.Y,
-                    meteor.Texture.Width,
-                    meteor.Texture.Height);
-                result = userShipRect.Intersects(meteorRect);
-                if (result == true)
-                {
-                    userShip.Value.Speed = 0;
-                    explosianPosition = userShip.Value.Position;
-                    meteor.Speed = 0;
-                }
-            }
-            return result;
-        }
-        public Vector2 NewMeteorPosition(Meteor meteor)
-        {
-            var rnd = new Random();
-            var newMeteorWidthPosition = rnd.Next(0, 1980 - meteor.Texture.Width);
-            var newMeteorPosition = new Vector2(newMeteorWidthPosition, -textF.Meteor.Height);
-            return meteor.Position = newMeteorPosition;
-        }
-        protected bool CollideBulletMeteor()
-        {
-            var result = false;
-            Bullet newBullet = null;
-            //var delay = 0; прерывание
-            foreach (var meteor in meteors)
-            {
-                Rectangle meteorRect = new Rectangle(
-                        (int)meteor.Position.X,
-                        (int)meteor.Position.Y,
-                        textF.Meteor.Width,
-                        textF.Meteor.Height
-                    );
-                foreach (var bullet in bullets)
-                {
-                    Rectangle bulletRect = new Rectangle(
-                            (int)bullet.Position.X,
-                            (int)bullet.Position.Y,
-                            textF.Bullet.Width,
-                            textF.Bullet.Height
-                        );
-                    result = bulletRect.Intersects(meteorRect);
-                    if (result == true)
-                    {
-                        // Сохранение удаляемого снаряда
-                        newBullet = bullet;
-                        // Взрыв с переопределением позиции метеорита
-                        explosianPosition = new Vector2(
-                            meteor.Position.X - textF.Meteor.Width / 2,
-                            meteor.Position.Y);
-                        meteor.Position = NewMeteorPosition(meteor);
-                        // Прерывания для отображения взрыва
-                        //if (delay == 0)
-                        //    delay += 25;
-                        //else
-                        //    delay--;
-                        //if (delay == 5)
-                        explosianPosition = DefaultExplosianPosition;
-                    }
-                }
-            }
-            // Удаление снаряда
-            bullets.Remove(newBullet);
-
             return result;
         }
     }
